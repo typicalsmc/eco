@@ -10,10 +10,11 @@ import java.io.IOException
 import java.io.InputStreamReader
 import java.io.OutputStream
 import java.io.Reader
+import java.nio.ByteBuffer
+import java.nio.channels.AsynchronousFileChannel
 import java.nio.file.Files
 import java.nio.file.StandardOpenOption
 
-@Suppress("UNCHECKED_CAST")
 open class EcoLoadableConfig(
     type: ConfigType,
     configName: String,
@@ -74,6 +75,20 @@ open class EcoLoadableConfig(
         }
     }
 
+    override fun saveAsync() {
+        // Save asynchronously using NIO
+        AsynchronousFileChannel.open(
+            configFile.toPath(),
+            StandardOpenOption.WRITE,
+            StandardOpenOption.CREATE
+        ).use { channel ->
+            channel.write(
+                ByteBuffer.wrap(this.toPlaintext().toByteArray()),
+                0
+            )
+        }
+    }
+
     private fun makeHeader(contents: String) {
         header.clear()
 
@@ -91,7 +106,7 @@ open class EcoLoadableConfig(
     protected fun init(reader: Reader) {
         val string = reader.readToString()
         makeHeader(string)
-        super.init(type.toMap(string))
+        super.init(type.toMap(string), emptyMap())
     }
 
     fun init(file: File) {

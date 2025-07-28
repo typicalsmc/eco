@@ -1,7 +1,9 @@
 package com.willfp.eco.internal.spigot.recipes
 
 import com.willfp.eco.core.EcoPlugin
+import com.willfp.eco.core.Prerequisite
 import com.willfp.eco.core.recipe.Recipes
+import com.willfp.eco.util.namespacedKeyOf
 import org.bukkit.Keyed
 import org.bukkit.event.EventHandler
 import org.bukkit.event.Listener
@@ -9,19 +11,55 @@ import org.bukkit.event.inventory.CraftItemEvent
 import org.bukkit.event.inventory.PrepareItemCraftEvent
 import org.bukkit.event.player.PlayerRecipeDiscoverEvent
 
-class CraftingRecipeListener : Listener {
+class CraftingRecipeListener(val plugin: EcoPlugin) : Listener {
     @EventHandler
-    fun preventLearningDisplayedRecipes(event: PlayerRecipeDiscoverEvent) {
+    fun handleDisplayedRecipeUnlocksPre1213(event: PlayerRecipeDiscoverEvent) {
+        if (Prerequisite.HAS_1_21_3.isMet) {
+            return
+        }
+
         if (!EcoPlugin.getPluginNames().contains(event.recipe.namespace)) {
             return
         }
+
         if (event.recipe.key.contains("_displayed")) {
             event.isCancelled = true
         }
     }
 
     @EventHandler
+    fun handleDisplayedRecipeUnlocks1213(event: PlayerRecipeDiscoverEvent) {
+        if (!Prerequisite.HAS_1_21_3.isMet) {
+            return
+        }
+
+        if (!EcoPlugin.getPluginNames().contains(event.recipe.namespace)) {
+            return
+        }
+
+        if (!event.recipe.key.contains("_displayed")) {
+            event.isCancelled = true
+
+            val player = event.player
+            player.discoverRecipe(namespacedKeyOf(
+                event.recipe.namespace,
+                event.recipe.key + "_displayed"
+            ))
+        }
+    }
+
+    @EventHandler
     fun processListeners(event: PrepareItemCraftEvent) {
+        handlePrepare(event)
+
+        if (plugin.configYml.getBool("enforce-preparing-recipes")) {
+            plugin.scheduler.runLater(1) {
+                handlePrepare(event)
+            }
+        }
+    }
+
+    private fun handlePrepare(event: PrepareItemCraftEvent) {
         var recipe = event.recipe as? Keyed
 
         if (recipe == null) {

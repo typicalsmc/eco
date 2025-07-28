@@ -1,5 +1,6 @@
 package com.willfp.eco.core.display;
 
+import com.willfp.eco.core.Eco;
 import com.willfp.eco.core.fast.FastItemStack;
 import com.willfp.eco.core.integrations.guidetection.GUIDetectionManager;
 import com.willfp.eco.util.NamespacedKeyUtils;
@@ -68,8 +69,10 @@ public final class Display {
 
         Display.revert(itemStack);
 
-        if (!itemStack.hasItemMeta()) {
-            return itemStack;
+        if (!Eco.get().getEcoPlugin().getConfigYml().getBool("display-without-meta")) {
+            if (!itemStack.hasItemMeta()) {
+                return itemStack;
+            }
         }
 
         ItemStack original = itemStack.clone();
@@ -208,10 +211,20 @@ public final class Display {
                 new ArrayList<>()
         );
 
-        modules.removeIf(it -> it.getPluginName().equalsIgnoreCase(module.getPluginName()));
         modules.add(module);
 
         REGISTERED_MODULES.put(module.getWeight(), modules);
+    }
+
+    /**
+     * Unregister a display module.
+     *
+     * @param module The module.
+     */
+    public static void unregisterDisplayModule(@NotNull final DisplayModule module) {
+        for (List<DisplayModule> modules : REGISTERED_MODULES.values()) {
+            modules.remove(module);
+        }
     }
 
     private Display() {

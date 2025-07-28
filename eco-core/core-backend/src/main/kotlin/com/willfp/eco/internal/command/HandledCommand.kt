@@ -3,7 +3,6 @@ package com.willfp.eco.internal.command
 import com.willfp.eco.core.EcoPlugin
 import com.willfp.eco.core.command.CommandBase
 import com.willfp.eco.core.command.NotificationException
-import com.willfp.eco.core.config.base.LangYml
 import org.bukkit.Bukkit
 import org.bukkit.command.Command
 import org.bukkit.command.CommandExecutor
@@ -106,7 +105,7 @@ abstract class HandledCommand(
         }
 
         try {
-            notifyFalse(!isPlayersOnly || sender is Player, LangYml.KEY_NOT_PLAYER)
+            notifyFalse(!isPlayersOnly || sender is Player, "not-player")
 
             onExecute(sender, args)
 
@@ -127,14 +126,19 @@ abstract class HandledCommand(
      * @return The tab completion results.
      */
     private fun CommandBase.handleTabComplete(sender: CommandSender, args: List<String>): List<String> {
-        if (!sender.hasPermission(permission)) return emptyList()
+        if (!sender.hasPermission(permission)) {
+            return emptyList()
+        }
 
         if (args.size == 1) {
-            val completions = subcommands.filter { sender.hasPermission(it.permission) }.map { it.name }
+            val completions = mutableListOf<String>()
 
-            val list = mutableListOf<String>()
+            StringUtil.copyPartialMatches(
+                args[0],
+                subcommands.filter { sender.hasPermission(it.permission) }.map { it.name },
+                completions
+            )
 
-            StringUtil.copyPartialMatches(args[0], completions, list)
             if (completions.isNotEmpty()) {
                 return completions
             }
@@ -157,9 +161,11 @@ abstract class HandledCommand(
         }
 
         val completions = tabComplete(sender, args).toMutableList()
+
         if (sender is Player) {
             completions.addAll(tabComplete(sender, args))
         }
+
         return completions.sorted()
     }
 }

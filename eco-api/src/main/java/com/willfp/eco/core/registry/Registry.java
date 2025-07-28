@@ -62,6 +62,7 @@ public class Registry<T extends Registrable> implements Iterable<T> {
         registry.put(element.getID(), element);
 
         element.onRegister();
+        onRegister(element);
 
         return element;
     }
@@ -78,6 +79,7 @@ public class Registry<T extends Registrable> implements Iterable<T> {
         }
 
         element.onRemove();
+        onRemove(element);
 
         registry.remove(element.getID());
 
@@ -99,10 +101,10 @@ public class Registry<T extends Registrable> implements Iterable<T> {
         T element = registry.get(id);
 
         if (element != null) {
-            element.onRemove();
+            return remove(element);
         }
 
-        return registry.remove(id);
+        return null;
     }
 
     /**
@@ -149,6 +151,10 @@ public class Registry<T extends Registrable> implements Iterable<T> {
      * @param locker The locker.
      */
     public void lock(@Nullable final Object locker) {
+        if (this.isLocked && this.locker != locker) {
+            throw new IllegalArgumentException("Registry is already locked with a different locker!");
+        }
+
         this.locker = locker;
         isLocked = true;
     }
@@ -162,7 +168,27 @@ public class Registry<T extends Registrable> implements Iterable<T> {
         if (this.locker != locker) {
             throw new IllegalArgumentException("Cannot unlock registry!");
         }
+
+        this.locker = null;
         isLocked = false;
+    }
+
+    /**
+     * Run when an element is registered.
+     *
+     * @param element The element.
+     */
+    protected void onRegister(@NotNull final T element) {
+        // Override this method to do something when an element is registered.
+    }
+
+    /**
+     * Run when an element is removed.
+     *
+     * @param element The element.
+     */
+    protected void onRemove(@NotNull final T element) {
+        // Override this method to do something when an element is removed.
     }
 
     /**

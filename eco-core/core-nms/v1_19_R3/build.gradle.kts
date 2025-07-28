@@ -6,8 +6,9 @@ group = "com.willfp"
 version = rootProject.version
 
 dependencies {
-    implementation(project(":eco-core:core-nms:nms-common"))
+    implementation(project(":eco-core:core-nms:common"))
     paperweight.paperDevBundle("1.19.4-R0.1-SNAPSHOT")
+    pluginRemapper("net.fabricmc:tiny-remapper:0.10.3:fat")
 
     implementation("net.kyori:adventure-text-minimessage:4.11.0") {
         version {

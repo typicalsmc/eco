@@ -12,6 +12,7 @@ import java.text.DecimalFormat;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Map;
+import java.util.Objects;
 import java.util.TreeMap;
 import java.util.concurrent.ThreadLocalRandom;
 
@@ -203,6 +204,20 @@ public final class NumberUtils {
     }
 
     /**
+     * Format double to string with commas.
+     *
+     * @param toFormat The number to format.
+     * @return Formatted.
+     */
+    @NotNull
+    public static String formatWithCommas(final double toFormat) {
+        DecimalFormat df = new DecimalFormat("#,##0.00");
+        String formatted = df.format(toFormat);
+
+        return formatted.endsWith(".00") ? formatted.substring(0, formatted.length() - 3) : formatted;
+    }
+
+    /**
      * Evaluate an expression.
      *
      * @param expression The expression.
@@ -251,12 +266,15 @@ public final class NumberUtils {
                                             @Nullable final Player player,
                                             @Nullable final PlaceholderInjectable context,
                                             @NotNull final Collection<AdditionalPlayer> additionalPlayers) {
-        return Eco.get().evaluate(expression, new PlaceholderContext(
-                player,
-                null,
-                context,
-                additionalPlayers
-        ));
+        return evaluateExpression(
+                expression,
+                new PlaceholderContext(
+                        player,
+                        null,
+                        context,
+                        additionalPlayers
+                )
+        );
     }
 
     /**
@@ -268,7 +286,7 @@ public final class NumberUtils {
      * @deprecated Use {@link #evaluateExpression(String, PlaceholderContext)} instead.
      */
     @Deprecated(since = "6.56.0", forRemoval = true)
-    @SuppressWarnings("removal")
+    @SuppressWarnings({"removal", "DeprecatedIsStillUsed"})
     public static double evaluateExpression(@NotNull final String expression,
                                             @NotNull final com.willfp.eco.core.math.MathContext context) {
         return evaluateExpression(expression, context.toPlaceholderContext());
@@ -283,6 +301,22 @@ public final class NumberUtils {
      */
     public static double evaluateExpression(@NotNull final String expression,
                                             @NotNull final PlaceholderContext context) {
+        return Objects.requireNonNullElse(
+                evaluateExpressionOrNull(expression, context),
+                0.0
+        );
+    }
+
+    /**
+     * Evaluate an expression in a context.
+     *
+     * @param expression The expression.
+     * @param context    The context.
+     * @return The value of the expression, or zero if invalid.
+     */
+    @Nullable
+    public static Double evaluateExpressionOrNull(@NotNull final String expression,
+                                                  @NotNull final PlaceholderContext context) {
         return Eco.get().evaluate(expression, context);
     }
 

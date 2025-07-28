@@ -6,6 +6,7 @@ import com.willfp.eco.core.Eco;
 import com.willfp.eco.core.fast.FastItemStack;
 import com.willfp.eco.core.items.args.LookupArgParser;
 import com.willfp.eco.core.items.provider.ItemProvider;
+import com.willfp.eco.core.items.tag.ItemTag;
 import com.willfp.eco.core.recipe.parts.EmptyTestableItem;
 import com.willfp.eco.core.recipe.parts.MaterialTestableItem;
 import com.willfp.eco.core.recipe.parts.ModifiedTestableItem;
@@ -91,6 +92,11 @@ public final class Items {
      * Friendly material names (without underscores, etc.)
      */
     private static final Map<String, Material> FRIENDLY_MATERIAL_NAMES = new HashMap<>();
+
+    /**
+     * All tags.
+     */
+    private static final Map<String, ItemTag> TAGS = new HashMap<>();
 
     /**
      * Register a new custom item.
@@ -216,7 +222,20 @@ public final class Items {
 
         String[] split = args[0].toLowerCase().split(":");
 
-        if (split.length == 1) {
+        String base = split[0];
+        boolean isTag = base.startsWith("#");
+
+        if (isTag) {
+            String tag = base.substring(1);
+            ItemTag itemTag = TAGS.get(tag);
+
+            if (itemTag == null) {
+                return new EmptyTestableItem();
+            }
+            item = itemTag.toTestableItem();
+        }
+
+        if (split.length == 1 && !isTag) {
             String itemType = args[0];
             boolean isWildcard = itemType.startsWith("*");
             if (isWildcard) {
@@ -229,7 +248,7 @@ public final class Items {
             item = isWildcard ? new UnrestrictedMaterialTestableItem(material) : new MaterialTestableItem(material);
         }
 
-        if (split.length == 2) {
+        if (split.length == 2 && !isTag) {
             String namespace = split[0];
             String keyID = split[1];
             NamespacedKey namespacedKey = NamespacedKeyUtils.create(namespace, keyID);
@@ -273,7 +292,7 @@ public final class Items {
         Legacy namespace:id:amount format
         This has been superseded by namespace:id amount
          */
-        if (split.length == 3) {
+        if (split.length == 3 && !isTag) {
             TestableItem part = REGISTRY.get(NamespacedKeyUtils.create(split[0], split[1]));
             if (part == null) {
                 return new EmptyTestableItem();
@@ -305,7 +324,8 @@ public final class Items {
 
         List<Predicate<ItemStack>> predicates = new ArrayList<>();
 
-        for (LookupArgParser argParser : ARG_PARSERS) {
+        for (
+                LookupArgParser argParser : ARG_PARSERS) {
             Predicate<ItemStack> predicate = argParser.parseArguments(modifierArgs, meta);
             if (predicate != null) {
                 predicates.add(argParser.parseArguments(modifierArgs, meta));
@@ -515,8 +535,11 @@ public final class Items {
      *
      * @param itemStack The ItemStack.
      * @return The base NBT.
+     * @deprecated Items are now component-based.
      */
     @NotNull
+    @Deprecated(since = "6.70.0", forRemoval = true)
+    @SuppressWarnings("removal")
     public static PersistentDataContainer getBaseNBT(@NotNull final ItemStack itemStack) {
         return FastItemStack.wrap(itemStack).getBaseTag();
     }
@@ -527,8 +550,11 @@ public final class Items {
      * @param itemStack The ItemStack.
      * @param container The base NBT tag.
      * @return The ItemStack, modified. Not required to use, as this modifies the instance.¬
+     * @deprecated Items are now component-based.
      */
     @NotNull
+    @Deprecated(since = "6.70.0", forRemoval = true)
+    @SuppressWarnings("removal")
     public static ItemStack setBaseNBT(@NotNull final ItemStack itemStack,
                                        @Nullable final PersistentDataContainer container) {
         FastItemStack fis = FastItemStack.wrap(itemStack);
@@ -602,6 +628,24 @@ public final class Items {
         }
 
         return false;
+    }
+
+    /**
+     * Register a new item tag.
+     *
+     * @param tag The tag.
+     */
+    public static void registerTag(@NotNull final ItemTag tag) {
+        TAGS.put(tag.getIdentifier(), tag);
+    }
+
+    /**
+     * Get all tags.
+     *
+     * @return All tags.
+     */
+    public static Collection<ItemTag> getTags() {
+        return TAGS.values();
     }
 
     private Items() {

@@ -6,6 +6,7 @@ import com.willfp.eco.core.placeholder.context.placeholderContext
 import me.clip.placeholderapi.expansion.PlaceholderExpansion
 import org.bukkit.entity.Player
 
+@Suppress("DEPRECATION")
 class PAPIExpansion(private val plugin: EcoPlugin) : PlaceholderExpansion() {
     init {
         register()
@@ -20,14 +21,17 @@ class PAPIExpansion(private val plugin: EcoPlugin) : PlaceholderExpansion() {
     }
 
     override fun getAuthor(): String {
+        @Suppress("DEPRECATION")
         return java.lang.String.join(", ", plugin.description.authors)
     }
 
     override fun getIdentifier(): String {
+        @Suppress("DEPRECATION")
         return plugin.description.name.lowercase()
     }
 
     override fun getVersion(): String {
+        @Suppress("DEPRECATION")
         return plugin.description.version
     }
 

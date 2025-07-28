@@ -1,5 +1,6 @@
 package com.willfp.eco.core.price;
 
+import com.willfp.eco.core.Eco;
 import com.willfp.eco.core.config.interfaces.Config;
 import com.willfp.eco.core.placeholder.context.PlaceholderContext;
 import com.willfp.eco.core.price.impl.PriceFree;
@@ -119,8 +120,12 @@ public final class ConfiguredPrice implements Price {
      */
     public String getDisplay(@NotNull final Player player,
                              final double multiplier) {
+        double value = this.getPrice().getValue(player, multiplier);
+
         return StringUtils.format(
-                formatString.replace("%value%", NumberUtils.format(this.getPrice().getValue(player, multiplier))),
+                formatString
+                        .replace("%value%", NumberUtils.format(value))
+                        .replace("%value_commas%", NumberUtils.formatWithCommas(value)),
                 player,
                 StringUtils.FormatOption.WITH_PLACEHOLDERS
         );
@@ -158,12 +163,27 @@ public final class ConfiguredPrice implements Price {
             if (!(
                     config.has("value")
                             && config.has("type")
-                            && config.has("display")
             )) {
                 return null;
             }
 
-            String formatString = config.getString("display");
+            String formatString;
+
+            String langConfig = Eco.get().getEcoPlugin().getLangYml()
+                    .getSubsections("price-display")
+                    .stream()
+                    .filter(section -> section.getString("type").equalsIgnoreCase(config.getString("type")))
+                    .findFirst()
+                    .map(section -> section.getString("display"))
+                    .orElse(null);
+
+            if (langConfig != null) {
+                formatString = langConfig;
+            } else if (config.has("display")) {
+                formatString = config.getString("display");
+            } else {
+                return null;
+            }
 
             Price price = Prices.create(
                     config.getString("value"),

@@ -5,23 +5,35 @@ api-version: 1.17
 authors: [ Auxilor ]
 website: willfp.com
 load: STARTUP
+
+# Fixes some plugins breaking load order
+loadbefore:
+  - Spartan
+  - CustomCrafting
+  - Lands
+  - EconomyShopGUI
+  - EconomyShopGUI-Premium
+  - CMI
+  - DeluxeCombat
+  - ShopGUIPlus
 softdepend:
+  - ItemBridge
+  - HuskClaims
+  - HuskTowns
+  - Terra
   - ProtocolLib
   - WorldGuard
   - GriefPrevention
   - Towny
   - FactionsUUID
-  - Lands
   - Kingdoms
   - NoCheatPlus
   - AAC
   - Matrix
-  - Spartan
   - Vulcan
   - PlaceholderAPI
   - mcMMO
   - CombatLogX
-  - ShopGUIPlus
   - ItemsAdder
   - Oraxen
   - HeadDatabase
@@ -29,22 +41,16 @@ softdepend:
   - Alice
   - HolographicDisplays
   - GHolo
-  - CMI
   - Essentials
   - Vault
   - BentoBox
-  - DeluxeCombat
   - IridiumSkyblock
   - SuperiorSkyblock2
   - FabledSkyBlock
   - CrashClaim
   - DecentHolograms
   - MythicMobs
-  - CustomCrafting
-  - ExecutableItems
   - RPGHorses
-  - EconomyShopGUI
-  - EconomyShopGUI-Premium
   - zShop
   - DeluxeSellwands
   - Scyther
@@ -54,3 +60,5 @@ softdepend:
   - UltraEconomy
   - PlayerPoints
   - Denizen
+  - RoyaleEconomy
+  - FancyHolograms

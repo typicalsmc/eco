@@ -1,5 +1,6 @@
 package com.willfp.eco.core;
 
+import com.google.common.collect.ImmutableList;
 import com.willfp.eco.core.command.impl.PluginCommand;
 import com.willfp.eco.core.config.base.ConfigYml;
 import com.willfp.eco.core.config.base.LangYml;
@@ -120,13 +121,21 @@ public abstract class EcoPlugin extends JavaPlugin implements PluginLike, Regist
 
     /**
      * The display module for the plugin.
+     *
+     * @deprecated Plugins can now have multiple display modules.
      */
+    @Deprecated(since = "6.72.0")
     private DisplayModule displayModule;
+
+    /**
+     * The display modules for the plugin.
+     */
+    private List<DisplayModule> displayModules = new ArrayList<>();
 
     /**
      * The logger for the plugin.
      */
-    private final Logger logger;
+    private Logger logger;
 
     /**
      * If the server is running an outdated version of the plugin.
@@ -163,6 +172,11 @@ public abstract class EcoPlugin extends JavaPlugin implements PluginLike, Regist
      * The tasks to run after load.
      */
     private final ListMap<LifecyclePosition, Runnable> afterLoad = new ListMap<>();
+
+    /**
+     * The tasks to run on task creation.
+     */
+    private final ListMap<LifecyclePosition, Runnable> onCreateTasks = new ListMap<>();
 
     /**
      * Create a new plugin.
@@ -425,7 +439,18 @@ public abstract class EcoPlugin extends JavaPlugin implements PluginLike, Regist
 
         this.loadPluginCommands().forEach(PluginCommand::register);
 
-        this.getScheduler().runLater(this::afterLoad, 1);
+        // Run preliminary reload to resolve load order issues
+        this.getScheduler().runLater(() -> {
+            Logger before = this.getLogger();
+            // Temporary silence logger.
+            this.logger = Eco.get().getNOOPLogger();
+
+            this.reload(false);
+
+            this.logger = before;
+        }, 1);
+
+        this.getScheduler().runLater(this::afterLoad, 2);
 
         if (this.isSupportingExtensions()) {
             this.getExtensionLoader().loadExtensions();
@@ -539,10 +564,15 @@ public abstract class EcoPlugin extends JavaPlugin implements PluginLike, Regist
      * Default code to be executed after the server is up.
      */
     public final void afterLoad() {
-        this.displayModule = createDisplayModule();
+        DisplayModule module = createDisplayModule();
+        if (module != null) {
+            Display.registerDisplayModule(module);
+            this.displayModules.add(module);
+        }
 
-        if (this.getDisplayModule() != null) {
-            Display.registerDisplayModule(this.getDisplayModule());
+        for (DisplayModule displayModule : this.loadDisplayModules()) {
+            Display.registerDisplayModule(displayModule);
+            this.displayModules.add(displayModule);
         }
 
         if (Prerequisite.HAS_PROTOCOLLIB.isMet()) {
@@ -559,8 +589,9 @@ public abstract class EcoPlugin extends JavaPlugin implements PluginLike, Regist
             this.getLogger().severe("");
             this.getLogger().severe("You don't seem to be running paper!");
             this.getLogger().severe("Paper is strongly recommended for all servers,");
-            this.getLogger().severe("and some things may not function properly without it");
-            this.getLogger().severe("Download Paper from &fhttps://papermc.io");
+            this.getLogger().severe("and many features may not function properly without it");
+            this.getLogger().severe("Download Paper from https://papermc.io");
+            this.getLogger().severe("It's a drop-in replacement for Spigot, so it's easy to switch.");
             this.getLogger().severe("");
             this.getLogger().severe("----------------------------");
             this.getLogger().severe("");
@@ -601,13 +632,29 @@ public abstract class EcoPlugin extends JavaPlugin implements PluginLike, Regist
      * Reload the plugin.
      */
     public final void reload() {
+        this.reload(true);
+    }
+
+    /**
+     * Reload the plugin.
+     *
+     * @param cancelTasks If tasks should be cancelled.
+     */
+    public final void reload(final boolean cancelTasks) {
         this.getConfigHandler().updateConfigs();
 
-        this.getScheduler().cancelAll();
+        if (cancelTasks) {
+            this.getScheduler().cancelAll();
+        }
+
         this.getConfigHandler().callUpdate();
         this.getConfigHandler().callUpdate(); // Call twice to fix issues
 
         this.handleLifecycle(this.onReload, this::handleReload);
+
+        if (cancelTasks) {
+            this.handleLifecycle(this.onCreateTasks, this::createTasks);
+        }
 
         for (Extension extension : this.extensionLoader.getLoadedExtensions()) {
             extension.handleReload();
@@ -632,6 +679,26 @@ public abstract class EcoPlugin extends JavaPlugin implements PluginLike, Regist
     public final void onReload(@NotNull final LifecyclePosition position,
                                @NotNull final Runnable task) {
         this.onReload.append(position, task);
+    }
+
+    /**
+     * Add new task to run on createTasks.
+     *
+     * @param task The task.
+     */
+    public final void onCreateTasks(@NotNull final Runnable task) {
+        this.onCreateTasks(LifecyclePosition.END, task);
+    }
+
+    /**
+     * Add new task to run on createTasks.
+     *
+     * @param position The position to run the task.
+     * @param task     The task.
+     */
+    public final void onCreateTasks(@NotNull final LifecyclePosition position,
+                                    @NotNull final Runnable task) {
+        this.onCreateTasks.append(position, task);
     }
 
     /**
@@ -719,6 +786,15 @@ public abstract class EcoPlugin extends JavaPlugin implements PluginLike, Regist
      * Override when needed.
      */
     protected void handleReload() {
+
+    }
+
+    /**
+     * The plugin-specific code to create tasks.
+     * <p>
+     * Override when needed.
+     */
+    protected void createTasks() {
 
     }
 
@@ -837,12 +913,23 @@ public abstract class EcoPlugin extends JavaPlugin implements PluginLike, Regist
      * Create the display module for the plugin.
      *
      * @return The display module, or null.
+     * @deprecated Use {@link #loadDisplayModules()} instead.
      */
     @Nullable
+    @Deprecated(since = "6.72.0")
     protected DisplayModule createDisplayModule() {
         Validate.isTrue(this.getDisplayModule() == null, "Display module exists!");
 
         return null;
+    }
+
+    /**
+     * Load display modules.
+     *
+     * @return The display modules.
+     */
+    protected List<DisplayModule> loadDisplayModules() {
+        return new ArrayList<>();
     }
 
     /**
@@ -1094,10 +1181,21 @@ public abstract class EcoPlugin extends JavaPlugin implements PluginLike, Regist
      * Get the plugin's display module.
      *
      * @return The display module.
+     * @deprecated Use {@link #getDisplayModules()} instead.
      */
     @Nullable
+    @Deprecated(since = "6.72.0", forRemoval = true)
     public DisplayModule getDisplayModule() {
         return this.displayModule;
+    }
+
+    /**
+     * Get the plugin's display modules.
+     *
+     * @return The display modules.
+     */
+    public List<DisplayModule> getDisplayModules() {
+        return ImmutableList.copyOf(this.displayModules);
     }
 
     /**
@@ -1148,6 +1246,16 @@ public abstract class EcoPlugin extends JavaPlugin implements PluginLike, Regist
     @NotNull
     public FixedMetadataValue createMetadataValue(@NotNull final Object value) {
         return this.getMetadataValueFactory().create(value);
+    }
+
+    /**
+     * Get if all {@link com.willfp.eco.core.data.keys.PersistentDataKey}'s for this
+     * plugin should be saved locally (via data.yml.) even if eco is using a database.
+     *
+     * @return If using local storage.
+     */
+    public boolean isUsingLocalStorage() {
+        return this.configYml.isUsingLocalStorage();
     }
 
     @Override

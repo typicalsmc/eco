@@ -7,7 +7,7 @@ import org.bukkit.Location
 import java.util.UUID
 
 class HologramDecentHolograms : HologramIntegration {
-    override fun createHologram(location: Location, contents: MutableList<String>): Hologram {
+    override fun createHologram(location: Location, contents: List<String>): Hologram {
         val id = UUID.randomUUID().toString()
 
         DHAPI.createHologram(id, location, contents)
@@ -26,8 +26,11 @@ class HologramDecentHolograms : HologramIntegration {
             DHAPI.getHologram(id)?.destroy()
         }
 
-        override fun setContents(contents: MutableList<String>) {
-            DHAPI.setHologramLines(DHAPI.getHologram(id), contents)
+        override fun setContents(contents: List<String>) {
+            val hologram = DHAPI.getHologram(id)
+            if (hologram != null) {
+                DHAPI.setHologramLines(hologram, contents)
+            }
         }
     }
 }

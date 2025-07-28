@@ -7,7 +7,8 @@ import com.willfp.eco.core.placeholder.InjectablePlaceholder
 import com.willfp.eco.core.placeholder.Placeholder
 import com.willfp.eco.core.placeholder.context.PlaceholderContext
 import com.willfp.eco.util.StringUtils
-import java.util.Optional
+import com.willfp.eco.util.evaluateExpression
+import com.willfp.eco.util.toNiceString
 import java.util.concurrent.TimeUnit
 
 /*
@@ -20,10 +21,12 @@ but it's still best to minimise the memory overhead.
 
 class PlaceholderParser {
     private val placeholderRegex = Regex("%([^% ]+)%")
+    private val prettyMathExpressionRegex = Regex("(\\{\\^\\{)(.)+(}})")
+    private val mathExpressionRegex = Regex("(\\{\\{)(.)+(}})")
 
     private val placeholderLookupCache = Caffeine.newBuilder()
         .expireAfterWrite(1, TimeUnit.SECONDS)
-        .build<PlaceholderLookup, Optional<Placeholder>>()
+        .build<PlaceholderLookup, Placeholder?>()
 
     fun translatePlacholders(text: String, context: PlaceholderContext): String {
         return translatePlacholders(text, context, context.injectableContext.placeholderInjections)
@@ -35,6 +38,29 @@ class PlaceholderParser {
         injections: Collection<InjectablePlaceholder>,
         translateEcoPlaceholders: Boolean = true
     ): String {
+        var processed = text
+
+        // Only evaluate math expressions if there might be any
+        // Checking { as a char is faster than checking a string sequence,
+        // even if it might lead to false positives.
+        if ('{' in processed) {
+            if ('^' in processed) {
+                // Evaluate pretty math expressions
+                processed = prettyMathExpressionRegex.findAll(processed).fold(processed) { acc, matchResult ->
+                    val expression = matchResult.value.substring(3, matchResult.value.length - 2)
+                    val result = evaluateExpression(expression, context)
+                    acc.replace(matchResult.value, result.toNiceString())
+                }
+            }
+
+            // Evaluate math expressions
+            processed = mathExpressionRegex.findAll(processed).fold(processed) { acc, matchResult ->
+                val expression = matchResult.value.substring(2, matchResult.value.length - 2)
+                val result = evaluateExpression(expression, context)
+                acc.replace(matchResult.value, result.toString())
+            }
+        }
+
         /*
 
         Why am I doing injections at the start, and again at the end?
@@ -56,7 +82,7 @@ class PlaceholderParser {
          */
 
         // Apply injections first
-        var processed = injections.fold(text) { acc, injection ->
+        processed = injections.fold(processed) { acc, injection ->
             injection.tryTranslateQuickly(acc, context)
         }
 
@@ -67,7 +93,7 @@ class PlaceholderParser {
                 val prefix = "%${additionalPlayer.identifier}_"
                 processed = found.fold(processed) { acc, placeholder ->
                     if (placeholder.startsWith(prefix)) {
-                        val newPlaceholder = "%${StringUtils.removePrefix(prefix, placeholder)}"
+                        val newPlaceholder = "%${StringUtils.removePrefix(placeholder, prefix)}"
                         val translation = translatePlacholders(
                             newPlaceholder,
                             context.copyWithPlayer(additionalPlayer.player),
@@ -122,10 +148,10 @@ class PlaceholderParser {
         val lookup = PlaceholderLookup(args, plugin, injections)
 
         val placeholder = placeholderLookupCache.get(lookup) {
-            Optional.ofNullable(it.findMatchingPlaceholder())
-        }.orElse(null) ?: return null
+            it.findMatchingPlaceholder()
+        }
 
-        return placeholder.getValue(args, context)
+        return placeholder?.getValue(args, context)
     }
 
     private fun translateEcoPlaceholdersIn(

@@ -22,6 +22,8 @@ fun ItemMeta.mergeFrom(other: ItemMeta): ItemMeta =
  * @see Items.getBaseNBT
  * @see Items.setBaseNBT
  */
+@Suppress("DEPRECATION")
+@Deprecated("Not supported in 1.20.5+", level = DeprecationLevel.ERROR)
 var ItemStack.baseNBT: PersistentDataContainer
     get() = Items.getBaseNBT(this)
     set(value) {
@@ -29,6 +31,8 @@ var ItemStack.baseNBT: PersistentDataContainer
     }
 
 /** @see Items.setBaseNBT */
+@Suppress("DEPRECATION", "DeprecatedCallableAddReplaceWith")
+@Deprecated("Not supported in 1.20.5+", level = DeprecationLevel.ERROR)
 fun ItemStack.clearNBT() =
     Items.setBaseNBT(this, null)
 
@@ -37,7 +41,12 @@ fun ItemStack.toSNBT() =
     Items.toSNBT(this)
 
 /** @see Items.isEmpty */
+@Deprecated("Use ItemStack.isEcoEmpty", ReplaceWith("Items.isEmpty(this)"))
 val ItemStack?.isEmpty: Boolean
+    get() = Items.isEmpty(this)
+
+/** @see Items.isEmpty */
+val ItemStack?.isEcoEmpty: Boolean
     get() = Items.isEmpty(this)
 
 /** @see Items.matchesAny */
